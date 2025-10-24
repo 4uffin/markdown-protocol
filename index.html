@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MDP Protocol Client Simulator</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Custom styles for a terminal-like appearance */
+        body {
+            font-family: 'Inter', monospace;
+            background-color: #1a1b26; /* Dark background */
+            color: #c0caf5; /* Light text */
+        }
+        .client-window {
+            border: 2px solid #7aa2f7; /* Blue border */
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+        }
+        .mdp-content h1, .mdp-content h2, .mdp-content h3 {
+            color: #a9b6fb; /* Accent color for headings */
+            border-bottom: 1px solid #414868;
+            padding-bottom: 0.5rem;
+            margin-top: 1.5rem;
+            margin-bottom: 1rem;
+        }
+        .mdp-content h1 { font-size: 2.25rem; }
+        .mdp-content h2 { font-size: 1.75rem; }
+        .mdp-content a {
+            color: #9ece6a; /* Green for links */
+            text-decoration: underline;
+            transition: color 0.1s;
+        }
+        .mdp-content a:hover {
+            color: #739d4b;
+        }
+        .mdp-content code {
+            background-color: #24283b;
+            padding: 2px 4px;
+            border-radius: 4px;
+            font-size: 0.9em;
+        }
+        .mdp-content pre {
+            background-color: #24283b;
+            padding: 1rem;
+            overflow-x: auto;
+            border-radius: 6px;
+            margin: 1rem 0;
+        }
+        .mdp-content ul {
+            list-style-type: disc;
+            margin-left: 1.5rem;
+            padding-left: 0.5rem;
+        }
+    </style>
+</head>
+<body class="p-4 sm:p-8 min-h-screen">
+
+    <div id="app" class="max-w-4xl mx-auto">
+        <h1 class="text-3xl font-bold mb-6 text-center text-[#7aa2f7]">
+            Markdown Protocol (MDP) Client Simulator
+        </h1>
+
+        <!-- Address Bar / Navigation -->
+        <div class="flex space-x-2 mb-4">
+            <button id="backButton" class="px-4 py-2 bg-[#414868] hover:bg-[#545c85] text-white rounded-lg shadow-md transition duration-150" disabled>
+                &larr; Back
+            </button>
+            <input id="urlInput" type="text" class="flex-grow p-2 rounded-lg bg-[#24283b] text-[#c0caf5] border border-[#7aa2f7] focus:border-[#a9b6fb] focus:ring-0" value="markdown://home">
+            <button id="goButton" class="px-4 py-2 bg-[#7aa2f7] hover:bg-[#a9b6fb] text-black font-semibold rounded-lg shadow-md transition duration-150">
+                GO
+            </button>
+        </div>
+
+        <!-- Simulated Client Window -->
+        <div class="client-window p-6 rounded-xl bg-[#1f2335] min-h-[500px]">
+            <div id="loadingIndicator" class="text-center py-10 hidden">
+                <p>Loading MDP content...</p>
+            </div>
+            <div id="contentDisplay" class="mdp-content">
+                <!-- Content will be rendered here -->
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        // --- Global State and Constants ---
+        const urlInput = document.getElementById('urlInput');
+        const goButton = document.getElementById('goButton');
+        const backButton = document.getElementById('backButton');
+        const contentDisplay = document.getElementById('contentDisplay');
+        const loadingIndicator = document.getElementById('loadingIndicator');
+
+        // Simple database mapping MDP URIs to raw Markdown content
+        const MDP_CONTENT_DB = {
+            'markdown://home': `
+# Welcome to MDP: Pure Content Transfer
+The Markdown Protocol (MDP) is a conceptual protocol **inspired by HTTP's request/response model and the Gemini protocol's minimalist philosophy.** It is designed for maximum simplicity and efficient content sharing.
+
+---
+
+## Core Philosophy (Inspired by Gemini)
+The server's only role is to provide the content, and the **Client** (this application) handles **all** styling, layout, and presentation. This decouples content from its appearance completely.
+
+### Navigation (Inspired by HTTP)
+* **Internal:** Links starting with \`markdown://\` navigate within the MDP ecosystem.
+* **External:** Links starting with \`http://\` or \`https://\` are external and handled by the standard browser engine.
+
+[Go to the Details Document](markdown://docs/details)
+
+## Client Settings (Simulated)
+This client is using a custom, high-contrast, terminal-inspired theme. This style is not dictated by the server.
+
+[Visit an external site](https://www.google.com) (Will open in a new tab/window)
+`,
+            'markdown://docs/details': `
+# Document Details and Syntax Test
+
+## Lists and Structure
+Here are some Markdown features this client supports:
+
+* Unordered lists are easy to read.
+* They maintain a high contrast style.
+* This structure promotes rapid information consumption.
+
+## Code Block Example
+Code blocks are essential for sharing technical data.
+
+\`\`\`javascript
+// This is a typical JavaScript code block.
+function simpleMDPFetch(uri) {
+    if (uri === 'markdown://404') {
+        return '# Error 404: Not Found';
+    }
+    return MDP_CONTENT_DB[uri];
+}
+\`\`\`
+
+## Text Formatting
+A paragraph with **bold text**, *italic emphasis*, and a little \`inline code\`. The entire page's look is defined by your client.
+
+[Back to Home](markdown://home)
+`,
+            'markdown://404': `
+# Error: MDP Resource Not Found
+The MDP document you requested could not be located on the simulated server.
+
+[Back to Home](markdown://home)
+`
+        };
+
+        // --- Core MDP Functions ---
+
+        /**
+         * Simulates the MDP server fetching content.
+         * In a real implementation, this would be a network fetch call.
+         * @param {string} uri The markdown:// URI requested.
+         * @returns {Promise<string>} The raw Markdown text.
+         */
+        async function fetchMDPContent(uri) {
+            // Simulate network latency
+            await new Promise(resolve => setTimeout(resolve, 300));
+
+            const content = MDP_CONTENT_DB[uri] || MDP_CONTENT_DB['markdown://404'];
+            return content;
+        }
+
+        /**
+         * Simple Markdown-to-HTML Renderer.
+         * This embodies the client's built-in rendering logic.
+         * NOTE: This is a highly simplified parser and ignores many complexities.
+         * @param {string} markdownText
+         * @returns {string} The rendered HTML string.
+         */
+        function renderMarkdown(markdownText) {
+            let html = markdownText
+                // Basic HTML escaping (important for safety)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;');
+
+            // 1. Code Blocks (must be done before other replacements)
+            // Revert escaped backticks for proper code block detection
+            const codeBlockRegex = /```(\w+)\s*([\s\S]*?)```/g;
+            html = html.replace(codeBlockRegex, (match, lang, code) => {
+                // Unescape inner code content
+                const cleanCode = code
+                    .replace(/&amp;/g, '&')
+                    .replace(/&lt;/g, '<')
+                    .replace(/&gt;/g, '>');
+                return `<pre><code class="language-${lang}">${cleanCode.trim()}</code></pre>`;
+            });
+
+            // 2. Headings (H1, H2, H3)
+            html = html.replace(/^###\s*(.*)$/gm, '<h3>$1</h3>');
+            html = html.replace(/^##\s*(.*)$/gm, '<h2>$1</h2>');
+            html = html.replace(/^#\s*(.*)$/gm, '<h1>$1</h1>');
+
+            // 3. Horizontal Rule
+            html = html.replace(/^\s*[-*]{3,}\s*$/gm, '<hr>');
+
+            // 4. Links ([Text](URL))
+            html = html.replace(/\[(.*?)\]\((.*?)\)/g, (match, text, url) => {
+                // Differentiate internal MDP links from external HTTP links
+                const target = url.startsWith('http') ? '_blank' : '_self';
+                // Note: using onclick for MDP links to hijack navigation
+                if (url.startsWith('markdown://')) {
+                    return `<a href="#" data-mdp-link="${url}" target="${target}">${text}</a>`;
+                }
+                return `<a href="${url}" target="${target}">${text}</a>`;
+            });
+
+            // 5. Lists (simple unordered)
+            html = html.replace(/^\*\s*(.*)$/gm, '<li>$1</li>');
+            html = html.replace(/^(<li>.*<\/li>(\s*<li>.*<\/li>)*)/gms, '<ul>$1</ul>');
+            
+            // 6. Inline formatting (Strong, Emphasis, Inline Code)
+            html = html.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>'); // **Bold**
+            html = html.replace(/\*(.*?)\*/g, '<em>$1</em>'); // *Italic* (simple form)
+            html = html.replace(/`(.*?)`/g, '<code>$1</code>'); // `Code`
+
+            // 7. Paragraphs and line breaks
+            // Wrap remaining content in paragraphs if it's not already in a block element
+            html = html.split('\n\n').map(p => {
+                const trimmedP = p.trim();
+                if (trimmedP && !trimmedP.match(/<(\/?(h[1-3]|ul|li|pre|hr|a|strong|em|code)|!)/i)) {
+                    return `<p>${trimmedP.replace(/\n/g, '<br>')}</p>`;
+                }
+                return trimmedP;
+            }).join('');
+
+            return html;
+        }
+
+        /**
+         * Main function to handle MDP request and rendering.
+         * @param {string} uri
+         * @param {boolean} pushState Whether to update browser history.
+         */
+        async function navigateMDP(uri, pushState = true) {
+            uri = uri.trim();
+            if (!uri.startsWith('markdown://')) {
+                console.error('MDP client only handles markdown:// URIs.');
+                // In a real client, this might fail or pass to a standard browser engine.
+                return;
+            }
+
+            urlInput.value = uri;
+            loadingIndicator.classList.remove('hidden');
+            contentDisplay.innerHTML = '';
+            
+            try {
+                const rawMarkdown = await fetchMDPContent(uri);
+                const renderedHtml = renderMarkdown(rawMarkdown);
+                
+                contentDisplay.innerHTML = renderedHtml;
+
+                // Update browser history for back button support
+                if (pushState) {
+                    window.history.pushState({ uri: uri }, uri, `#${uri}`);
+                }
+            } catch (error) {
+                console.error("MDP Navigation Error:", error);
+                contentDisplay.innerHTML = `<h1 class="text-red-500">Navigation Error</h1><p>Could not retrieve MDP content for ${uri}.</p>`;
+            } finally {
+                loadingIndicator.classList.add('hidden');
+                updateHistoryButtons();
+            }
+        }
+
+        /**
+         * Handles history change and back/forward navigation.
+         */
+        window.onpopstate = (event) => {
+            const state = event.state;
+            if (state && state.uri) {
+                navigateMDP(state.uri, false); // Don't push state again
+            } else if (window.location.hash) {
+                // Handle initial load with hash
+                navigateMDP(window.location.hash.substring(1), false);
+            } else {
+                // Fallback to home page
+                navigateMDP('markdown://home', false);
+            }
+        };
+
+        /**
+         * Updates the state of the back button.
+         */
+        function updateHistoryButtons() {
+            // A simple check: if we can go back, enable the button
+            backButton.disabled = window.history.length <= 1;
+        }
+
+        // --- Event Listeners ---
+
+        goButton.addEventListener('click', () => {
+            navigateMDP(urlInput.value);
+        });
+
+        urlInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                navigateMDP(urlInput.value);
+            }
+        });
+
+        backButton.addEventListener('click', () => {
+            window.history.back();
+        });
+
+        // Event delegation for internal MDP links
+        contentDisplay.addEventListener('click', (e) => {
+            const link = e.target.closest('a[data-mdp-link]');
+            if (link) {
+                e.preventDefault(); // Stop standard navigation
+                const uri = link.getAttribute('data-mdp-link');
+                navigateMDP(uri);
+            }
+        });
+
+        // --- Initialization ---
+
+        // Check for hash on initial load (allows users to share MDP links)
+        const initialUri = window.location.hash ? window.location.hash.substring(1) : 'markdown://home';
+        navigateMDP(initialUri);
+
+        // Update initial button state
+        updateHistoryButtons();
+    </script>
+</body>
+</html>
