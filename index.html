@@ -51,6 +51,15 @@
             margin-left: 1.5rem;
             padding-left: 0.5rem;
         }
+        /* Custom styling for rendered images to make them fit the theme */
+        .mdp-content img {
+            max-width: 100%;
+            height: auto;
+            margin: 1rem auto;
+            display: block;
+            border: 1px solid #7aa2f7; /* Blue border for the theme */
+            border-radius: 8px;
+        }
     </style>
 </head>
 <body class="p-4 sm:p-8 min-h-screen">
@@ -97,6 +106,20 @@
         // Custom History Tracking for accurate Back/Forward button state
         let mdpHistory = ['markdown://home'];
         let mdpHistoryIndex = 0;
+        
+        /**
+         * Returns the current local time in 12-hour format.
+         * @returns {string} Formatted time string.
+         */
+        function getFormattedTime() {
+            const now = new Date();
+            return now.toLocaleString('en-US', {
+                hour: 'numeric',
+                minute: '2-digit',
+                second: '2-digit',
+                hour12: true
+            });
+        }
 
         // Simple database mapping MDP URIs to raw Markdown content
         const MDP_CONTENT_DB = {
@@ -115,6 +138,13 @@ The server's only role is to provide the content, and the **Client** (this appli
 
 [Go to the Details Document](markdown://docs/details)
 [Read the FAQ](markdown://docs/faq)
+[Check Client Compliance](markdown://client/test)
+
+## Search the MDP Ecosystem (Client Demonstration)
+This client supports passing query strings. Try searching for something here:
+
+[Search for 'Protocol'](markdown://search?q=Protocol)
+[Search for 'Security'](markdown://search?q=Security)
 
 ## Client Settings (Simulated)
 This client is using a custom, high-contrast, terminal-inspired theme. This style is not dictated by the server.
@@ -167,26 +197,119 @@ The styling (fonts, colors, layout) is controlled entirely by the MDP Client (th
 [Back to Home](markdown://home)
 `,
             'markdown://technical/spec': `
-# MDP Protocol Specification Draft 1.0
+# MDP Protocol Specification Draft 1.0 (Refined)
 
 ---
 
 ## 1. Request Structure
 A client requests a resource using a URI with the \`markdown://\` scheme. The request is generally a simple GET operation.
 
-## 2. Server Response
-The server responds with a status code (e.g., 200 OK) followed by a body containing the requested document. The Content-Type MUST be \`text/markdown\`.
+## 2. Server Response Structure
+The server MUST precede the content body with a status header indicating the transaction outcome. The Content-Type MUST be \`text/markdown\`.
 
-## 3. Allowed Content Types
-Only CommonMark Markdown is permitted in the document body. Image links via \`http://\` or \`https://\` are allowed to embed media, but must be treated as external resources.
+## 3. MDP Status Codes (Simulated)
+MDP uses simple, two-digit status codes to communicate transaction results back to the client. The client is responsible for interpreting and handling these results (e.g., automatically following a redirect or displaying an error page).
 
-## 4. Forbidden Elements
-The MDP strictly forbids the inclusion of:
-* Any form of scripting (JavaScript).
-* Inline styling or custom CSS links.
-* Proprietary markup or binary data within the document body.
+* **20 OK:** The request was successful, and the content follows immediately.
+* **30 Redirect:** The requested resource has moved. The content body may contain a new URI, or the client may simply display a static message.
+* **40 Not Found:** The requested URI does not correspond to any resource on the server.
+* **50 Server Error:** The server encountered an internal problem and could not fulfill the request.
+
+## 4. Allowed Content Types
+Only **CommonMark Markdown** is permitted in the document body. Image links via \`http://\` or \`https://\` are allowed to embed media, but these must be treated as external resources.
+
+## 5. Forbidden Elements and Security Rationale
+The MDP strictly forbids certain elements to guarantee minimalism, security, and client autonomy:
+
+* **Scripting (JavaScript, WebAssembly):** FORBIDDEN. This is the single most important security measure. By prohibiting executable code, MDP **eliminates the risk** of XSS attacks, tracking, and malware injection.
+* **External Styling (CSS/Inline Styling):** FORBIDDEN. The client's local theme (like the dark, terminal-style theme you're using) is **unalterable** by the server. This ensures a consistent, accessible user experience and prevents "style hijacking."
+* **Proprietary Markup or Binary Data:** FORBIDDEN. Content must remain pure, readable Markdown.
 
 [Back to Details](markdown://docs/details)
+[Back to Home](markdown://home)
+`,
+            'markdown://data/status': `
+# Client Status Information
+
+This page demonstrates client-side content processing. The server sent the placeholder, and the client (your browser) replaced it with live data.
+
+* **Current Client Time (Local):** [CLIENT_INFO:TIMESTAMP]
+* **Client User Agent:** The client is responsible for interpreting the content, not the server.
+* **Protocol Status:** Operational
+* **Current MDP URI:** \`markdown://data/status\`
+
+[Back to Home](markdown://home)
+`,
+            'markdown://search': `
+# Search Results
+
+You requested a search for: **[CLIENT_INFO:SEARCH_TERM]**
+
+---
+
+This is the static content returned by the server for \`markdown://search\`. The MDP client interpreted the URI's query parameters (\`?q=...\`) and dynamically inserted the term above.
+
+## Simulated Results
+* If the search term was "Protocol", result 1.
+* If the search term was "Security", result 2.
+
+[Back to Home](markdown://home)
+`,
+            'markdown://client/test': `
+# Client Compliance Test: Supported Markdown Features
+
+---
+
+## 1. Headings
+This client supports H1, H2, and H3 elements.
+
+### Heading Level 3
+All headings are clearly separated and styled by the client's local theme.
+
+## 2. Text Emphasis and Inline Code
+This is a standard paragraph to test *italic text* and **bold (strong) text**. 
+The most common way to display technical syntax is using \`inline code snippets\` within sentences.
+
+## 3. Lists
+Unordered lists should render with clear bullet points.
+
+* First item in the list
+* Second item requires *emphasis*
+* Third item uses **bolding** and includes a link: [Back to Home](markdown://home)
+
+## 4. Code Blocks
+Syntax highlighting is not the server's concern, but the structure of the code block itself must be maintained by the client.
+
+\`\`\`python
+# Python code example for Fibonacci Sequence
+def fibonacci(n):
+    a, b = 0, 1
+    for _ in range(n):
+        yield a
+        a, b = b, a + b
+
+# Using the function
+print("Generating 5 numbers:")
+for val in fibonacci(5):
+    print(val)
+\`\`\`
+
+## 5. Horizontal Rule
+The horizontal rule (HR) element should provide a clear visual separation between sections, like the one below this text.
+
+---
+
+## 6. Links (Internal and External)
+The client must handle both MDP links and standard external links correctly.
+
+* Internal Navigation: [Go to Technical Specification](markdown://technical/spec)
+* External Navigation (Opens in new tab): [Check out Google](https://www.google.com)
+
+## 7. Images (External Resources)
+The client fetches and displays external images referenced in the MDP document. The client controls the styling (e.g., border, max-width).
+
+![Placeholder image for the MDP concept](https://placehold.co/600x200/414868/c0caf5?text=MDP+Image+Placeholder)
+
 [Back to Home](markdown://home)
 `,
             'markdown://404': `
@@ -218,16 +341,38 @@ The MDP document you requested could not be located on the simulated server.
          * This embodies the client's built-in rendering logic.
          * NOTE: This is a highly simplified parser and ignores many complexities.
          * @param {string} markdownText
+         * @param {string} [searchTerm=''] - Optional term parsed from the URI query string.
          * @returns {string} The rendered HTML string.
          */
-        function renderMarkdown(markdownText) {
+        function renderMarkdown(markdownText, searchTerm = '') {
+            // --- Client-Side Dynamic Replacements ---
+            // 1. Replace the timestamp placeholder with the client's current local time.
+            markdownText = markdownText.replace(/\[CLIENT_INFO:TIMESTAMP\]/g, getFormattedTime());
+            
+            // 2. Replace the search term placeholder with the parsed query.
+            const termToDisplay = searchTerm ? decodeURIComponent(searchTerm) : 'No query term provided.';
+            markdownText = markdownText.replace(/\[CLIENT_INFO:SEARCH_TERM\]/g, termToDisplay);
+            // ---------------------------------------------
+            
             let html = markdownText
                 // Basic HTML escaping (important for safety)
                 .replace(/&/g, '&amp;')
                 .replace(/</g, '&lt;')
                 .replace(/>/g, '&gt;');
 
-            // 1. Code Blocks (must be done before other replacements)
+            // 1. Image References (must be done before link replacement)
+            // Regex: ! [ Alt Text ] ( URL )
+            // Must use a permissive regex here since the content is already escaped by the client (replace: &amp;lt; with < etc.)
+            const imageRegex = /!\[(.*?)\]\((.*?)\)/g;
+            html = html.replace(imageRegex, (match, altText, url) => {
+                // We MUST unescape the altText and url before using them in the HTML tag
+                const cleanAlt = altText.replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>');
+                const cleanUrl = url.replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>');
+                // The client applies styling via CSS to ensure the image fits the theme/layout
+                return `<img src="${cleanUrl}" alt="${cleanAlt}" onerror="this.onerror=null; this.src='https://placehold.co/400x150/ff0000/ffffff?text=Image+Load+Error';" />`;
+            });
+
+            // 2. Code Blocks (must be done before other replacements)
             // Revert escaped backticks for proper code block detection
             const codeBlockRegex = /```(\w+)\s*([\s\S]*?)```/g;
             html = html.replace(codeBlockRegex, (match, lang, code) => {
@@ -239,15 +384,15 @@ The MDP document you requested could not be located on the simulated server.
                 return `<pre><code class="language-${lang}">${cleanCode.trim()}</code></pre>`;
             });
 
-            // 2. Headings (H1, H2, H3)
+            // 3. Headings (H1, H2, H3)
             html = html.replace(/^###\s*(.*)$/gm, '<h3>$1</h3>');
             html = html.replace(/^##\s*(.*)$/gm, '<h2>$1</h2>');
             html = html.replace(/^#\s*(.*)$/gm, '<h1>$1</h1>');
 
-            // 3. Horizontal Rule
+            // 4. Horizontal Rule
             html = html.replace(/^\s*[-*]{3,}\s*$/gm, '<hr>');
 
-            // 4. Links ([Text](URL))
+            // 5. Links ([Text](URL))
             html = html.replace(/\[(.*?)\]\((.*?)\)/g, (match, text, url) => {
                 // Differentiate internal MDP links from external HTTP links
                 const target = url.startsWith('http') ? '_blank' : '_self';
@@ -258,24 +403,28 @@ The MDP document you requested could not be located on the simulated server.
                 return `<a href="${url}" target="${target}">${text}</a>`;
             });
 
-            // 5. Lists (simple unordered)
+            // 6. Lists (simple unordered)
             html = html.replace(/^\*\s*(.*)$/gm, '<li>$1</li>');
             html = html.replace(/^(<li>.*<\/li>(\s*<li>.*<\/li>)*)/gms, '<ul>$1</ul>');
             
-            // 6. Inline formatting (Strong, Emphasis, Inline Code)
+            // 7. Inline formatting (Strong, Emphasis, Inline Code)
             html = html.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>'); // **Bold**
             html = html.replace(/\*(.*?)\*/g, '<em>$1</em>'); // *Italic* (simple form)
             html = html.replace(/`(.*?)`/g, '<code>$1</code>'); // `Code`
 
-            // 7. Paragraphs and line breaks
+            // 8. Paragraphs and line breaks
             // Wrap remaining content in paragraphs if it's not already in a block element
             html = html.split('\n\n').map(p => {
                 const trimmedP = p.trim();
-                if (trimmedP && !trimmedP.match(/<(\/?(h[1-3]|ul|li|pre|hr|a|strong|em|code)|!)/i)) {
+                // Check if it's already a block element we've generated (h1-h3, ul, li, pre, hr, img, a, strong, em, code)
+                if (trimmedP && !trimmedP.match(/<(\/?(h[1-3]|ul|li|pre|hr|img|strong|em|code)|!)/i)) {
                     return `<p>${trimmedP.replace(/\n/g, '<br>')}</p>`;
                 }
                 return trimmedP;
             }).join('');
+            
+            // Finally, clean up any stray newlines between block elements
+            html = html.replace(/<\/p><p>/g, '</p>\n<p>');
 
             return html;
         }
@@ -287,9 +436,23 @@ The MDP document you requested could not be located on the simulated server.
          */
         async function navigateMDP(uri, pushState = true) {
             uri = uri.trim();
-            if (!uri.startsWith('markdown://')) {
+            
+            // --- NEW: Parse URI and extract query term ---
+            const parts = uri.split('?');
+            const contentUri = parts[0];
+            const queryString = parts.length > 1 ? parts[1] : '';
+
+            // Extract search term from query string 'q='
+            let searchTerm = '';
+            if (queryString) {
+                const params = new URLSearchParams(queryString);
+                // We use 'q' as the standard search query parameter
+                searchTerm = params.get('q') || '';
+            }
+            // ---------------------------------------------
+
+            if (!contentUri.startsWith('markdown://')) {
                 console.error('MDP client only handles markdown:// URIs.');
-                // In a real client, this might fail or pass to a standard browser engine.
                 return;
             }
 
@@ -298,8 +461,10 @@ The MDP document you requested could not be located on the simulated server.
             contentDisplay.innerHTML = '';
             
             try {
-                const rawMarkdown = await fetchMDPContent(uri);
-                const renderedHtml = renderMarkdown(rawMarkdown);
+                // Fetch content using the base URI (the server doesn't care about the query)
+                const rawMarkdown = await fetchMDPContent(contentUri);
+                // Pass the extracted search term to renderMarkdown for dynamic content
+                const renderedHtml = renderMarkdown(rawMarkdown, searchTerm);
                 
                 contentDisplay.innerHTML = renderedHtml;
 
@@ -313,7 +478,6 @@ The MDP document you requested could not be located on the simulated server.
                     mdpHistoryIndex = mdpHistory.length - 1;
 
                     // Push state to native browser history, only storing the URI in the hash
-                    // We don't need to store the index in the native state anymore.
                     window.history.pushState(null, uri, `#${uri}`);
                 }
             } catch (error) {
@@ -352,7 +516,7 @@ The MDP document you requested could not be located on the simulated server.
             forwardButton.disabled = mdpHistoryIndex >= mdpHistory.length - 1;
         }
 
-        // --- Event Listeners (FIXED) ---
+        // --- Event Listeners ---
 
         goButton.addEventListener('click', () => {
             navigateMDP(urlInput.value);
@@ -374,7 +538,7 @@ The MDP document you requested could not be located on the simulated server.
             }
         });
 
-        // Manual Forward Button Handler (FIXED LOGIC)
+        // Manual Forward Button Handler
         forwardButton.addEventListener('click', () => {
             if (mdpHistoryIndex < mdpHistory.length - 1) {
                 mdpHistoryIndex++;
