@@ -77,6 +77,16 @@
             <button id="forwardButton" aria-label="Forward" title="Go Forward in MDP History" class="px-4 py-2.5 bg-[#414868] hover:bg-[#545c85] text-white rounded-lg shadow-md transition duration-150" disabled>
                 &rarr;
             </button>
+            
+            <!-- REFRESH BUTTON (NEW) -->
+            <button id="refreshButton" aria-label="Refresh" title="Reload Current Page" class="px-4 py-2.5 bg-[#414868] hover:bg-[#545c85] text-white rounded-lg shadow-md transition duration-150">
+                🔄
+            </button>
+
+            <!-- HOME BUTTON -->
+            <button id="homeButton" aria-label="Home" title="Go to Home Page" class="px-4 py-2.5 bg-[#7aa2f7] hover:bg-[#a9b6fb] text-black font-semibold rounded-lg shadow-md transition duration-150">
+                🏠
+            </button>
             <input id="urlInput" title="Enter a markdown:// URI or full URL to navigate" type="text" class="flex-grow px-3 py-2.5 rounded-lg bg-[#24283b] text-[#c0caf5] border border-[#7aa2f7] focus:border-[#a9b6fb] focus:ring-0" value="markdown://home">
             <button id="goButton" title="Navigate to the entered URI" class="px-4 py-2.5 bg-[#7aa2f7] hover:bg-[#a9b6fb] text-black font-semibold rounded-lg shadow-md transition duration-150">
                 GO
@@ -100,6 +110,8 @@
         const goButton = document.getElementById('goButton');
         const backButton = document.getElementById('backButton');
         const forwardButton = document.getElementById('forwardButton');
+        const homeButton = document.getElementById('homeButton');
+        const refreshButton = document.getElementById('refreshButton'); // Added refresh button reference
         const contentDisplay = document.getElementById('contentDisplay');
         const loadingIndicator = document.getElementById('loadingIndicator');
 
@@ -139,6 +151,7 @@ The server's only role is to provide the content, and the **Client** (this appli
 [Go to the Details Document](markdown://docs/details)
 [Read the FAQ](markdown://docs/faq)
 [Check Client Compliance](markdown://client/test)
+[View All Known Pages](markdown://pages)
 
 ## Search the MDP Ecosystem (Client Demonstration)
 This client supports passing query strings. Try searching for something here:
@@ -312,6 +325,17 @@ The client fetches and displays external images referenced in the MDP document. 
 
 [Back to Home](markdown://home)
 `,
+            'markdown://pages': `
+# All Available MDP Pages
+
+---
+
+This client dynamically generates a list of all resources known to its local database.
+
+[CLIENT_INFO:PAGE_LIST]
+
+[Back to Home](markdown://home)
+`,
             'markdown://404': `
 # Error: MDP Resource Not Found
 The MDP document you requested could not be located on the simulated server.
@@ -345,13 +369,34 @@ The MDP document you requested could not be located on the simulated server.
          * @returns {string} The rendered HTML string.
          */
         function renderMarkdown(markdownText, searchTerm = '') {
-            // --- Client-Side Dynamic Replacements ---
+            // --- CLIENT-SIDE DYNAMIC REPLACEMENTS (on unescaped text) ---
+            
             // 1. Replace the timestamp placeholder with the client's current local time.
             markdownText = markdownText.replace(/\[CLIENT_INFO:TIMESTAMP\]/g, getFormattedTime());
             
             // 2. Replace the search term placeholder with the parsed query.
             const termToDisplay = searchTerm ? decodeURIComponent(searchTerm) : 'No query term provided.';
             markdownText = markdownText.replace(/\[CLIENT_INFO:SEARCH_TERM\]/g, termToDisplay);
+            
+            // 3. Generate the dynamic list of pages. (NEW)
+            if (markdownText.includes('[CLIENT_INFO:PAGE_LIST]')) {
+                let pageListMarkdown = '';
+                const sortedKeys = Object.keys(MDP_CONTENT_DB).sort();
+                
+                sortedKeys.forEach(uri => {
+                    let title = uri.replace('markdown://', '');
+                    // Simple capitalization for readability (e.g., 'docs/details' -> 'Docs: Details')
+                    title = title.split('/').map(s => s.charAt(0).toUpperCase() + s.slice(1)).join(': ');
+                    
+                    if (uri === 'markdown://home') title = 'Home';
+                    if (uri === 'markdown://404') title = 'Error: Not Found (404)';
+                    
+                    // Generate a standard Markdown list item with a link
+                    pageListMarkdown += `* [${title}](${uri})\n`;
+                });
+                
+                markdownText = markdownText.replace(/\[CLIENT_INFO:PAGE_LIST\]/g, pageListMarkdown);
+            }
             // ---------------------------------------------
             
             let html = markdownText
@@ -546,6 +591,17 @@ The MDP document you requested could not be located on the simulated server.
                 navigateMDP(uri, false); // Render the page
                 window.history.replaceState(null, uri, `#${uri}`); // Update URL hash without pushing new history
             }
+        });
+        
+        // Manual Refresh Button Handler (NEW)
+        refreshButton.addEventListener('click', () => {
+            // Reload the current URI without creating a new history entry.
+            navigateMDP(urlInput.value, false);
+        });
+
+        // Manual Home Button Handler
+        homeButton.addEventListener('click', () => {
+            navigateMDP('markdown://home');
         });
 
         // Event delegation for internal MDP links
