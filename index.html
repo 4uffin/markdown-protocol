@@ -90,7 +90,7 @@
         const urlInput = document.getElementById('urlInput');
         const goButton = document.getElementById('goButton');
         const backButton = document.getElementById('backButton');
-        const forwardButton = document.getElementById('forwardButton'); // New Forward Button
+        const forwardButton = document.getElementById('forwardButton');
         const contentDisplay = document.getElementById('contentDisplay');
         const loadingIndicator = document.getElementById('loadingIndicator');
 
@@ -312,8 +312,9 @@ The MDP document you requested could not be located on the simulated server.
                     mdpHistory.push(uri);
                     mdpHistoryIndex = mdpHistory.length - 1;
 
-                    // Push state to native browser history, including our index
-                    window.history.pushState({ uri: uri, mdpIndex: mdpHistoryIndex }, uri, `#${uri}`);
+                    // Push state to native browser history, only storing the URI in the hash
+                    // We don't need to store the index in the native state anymore.
+                    window.history.pushState(null, uri, `#${uri}`);
                 }
             } catch (error) {
                 console.error("MDP Navigation Error:", error);
@@ -325,21 +326,20 @@ The MDP document you requested could not be located on the simulated server.
         }
 
         /**
-         * Handles history change and back/forward navigation.
+         * Handles history change from the user's *native* browser back/forward gestures.
+         * We update our custom index to match the URL hash when this happens.
          */
         window.onpopstate = (event) => {
-            const state = event.state;
-            if (state && state.uri) {
-                // Update custom index when navigating back or forward via popstate
-                mdpHistoryIndex = state.mdpIndex;
-                navigateMDP(state.uri, false); // Don't push state again
-            } else if (window.location.hash) {
-                // Handle initial load with hash
-                navigateMDP(window.location.hash.substring(1), false);
-            } else {
-                // Fallback to home page
-                navigateMDP('markdown://home', false);
+            const uriFromHash = window.location.hash ? window.location.hash.substring(1) : 'markdown://home';
+
+            // Find the URI in our custom history array to sync the index
+            const newIndex = mdpHistory.indexOf(uriFromHash);
+            
+            if (newIndex !== -1) {
+                mdpHistoryIndex = newIndex;
             }
+            
+            navigateMDP(uriFromHash, false); // Render, but do not push a new state
         };
 
         /**
@@ -352,7 +352,7 @@ The MDP document you requested could not be located on the simulated server.
             forwardButton.disabled = mdpHistoryIndex >= mdpHistory.length - 1;
         }
 
-        // --- Event Listeners ---
+        // --- Event Listeners (FIXED) ---
 
         goButton.addEventListener('click', () => {
             navigateMDP(urlInput.value);
@@ -364,12 +364,24 @@ The MDP document you requested could not be located on the simulated server.
             }
         });
 
+        // Manual Back Button Handler
         backButton.addEventListener('click', () => {
-            window.history.back();
+            if (mdpHistoryIndex > 0) {
+                mdpHistoryIndex--;
+                const uri = mdpHistory[mdpHistoryIndex];
+                navigateMDP(uri, false); // Render the page
+                window.history.replaceState(null, uri, `#${uri}`); // Update URL hash without pushing new history
+            }
         });
 
+        // Manual Forward Button Handler (FIXED LOGIC)
         forwardButton.addEventListener('click', () => {
-            window.history.forward();
+            if (mdpHistoryIndex < mdpHistory.length - 1) {
+                mdpHistoryIndex++;
+                const uri = mdpHistory[mdpHistoryIndex];
+                navigateMDP(uri, false); // Render the page
+                window.history.replaceState(null, uri, `#${uri}`); // Update URL hash without pushing new history
+            }
         });
 
         // Event delegation for internal MDP links
